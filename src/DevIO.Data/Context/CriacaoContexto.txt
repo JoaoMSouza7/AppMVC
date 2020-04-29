@@ -1,0 +1,93 @@
+Criamos a nossa Classe de contexto, instalamos o pacote o EFCore => Install-Package Microsoft.EntityFrameworkCore.
+Após isto a gente relaciona o MeuDbContext : DbContext
+___
+Criamos o Construtor e no construtor, ele recebe o (DbContextOptions options) e repassamos pra classe Base o options => :base(options).
+___
+Agora vamos mapear as entidades no meu contexto, mas antes precisamos adicionar a referencia da
+camada de negocio para queo contexto reconheça os nossos modelos.
+
+public DbSet<Produto> Produtos { get; set; } => faz para todos.
+___
+Agora antes de criarmos essas entidades no banco, vamos Mapeá-las para que seja criado da forma que precisamos,
+setando o tamanho dos campos, as chaves primarias e estrangeiras, o relacionamento das tabelas e a validaçãode Required!
+Para isso usamos o FluentApi!
+
+Na pasta Mapping vamos Criar o ProdutoMapping:
+Essa classe vai fazer o mapeamento de Produto no banco, ela herda de IEntityTypeConfiguration<Produto>.
+E agora implementamos a interface para configurar essa classe:
+
+Ficará Assim: 
+    class ProdutoMapping : IEntityTypeConfiguration<Produto>
+    {
+        public void Configure(EntityTypeBuilder<Produto> builder)
+        {
+            builder.HasKey(p => p.Id);
+
+            builder.Property(p => p.Nome)
+                .IsRequired()
+                .HasColumnType("Varchar(200)"); 
+		=> o HasColumnType precisa do pacote => Install-Package Microsoft.EntityFrameworkCore.Relational
+
+            builder.Property(p => p.Descricao)
+                .IsRequired()
+                .HasColumnType("Varchar(1000)");
+
+            builder.Property(p => p.Imagem)
+                .IsRequired()
+                .HasColumnType("Varchar(100)");
+
+            builder.ToTable("Produtos");
+        }
+    }
+
+Agora para fazermos a classe de Fornecedor, temos o relacionamento com Produtos e Endereço, ou  seja,
+o Fornecedor pode ter vários Produtos => 1 : N,
+o Fornecedor possui um endereço => 1 : 1,
+
+O mapeamento dos outros campos segue o mesmo padrão acima, já o relacionamento
+ficará assim:
+
+            //1:1 => Fornecedor : Endereco
+            builder.HasOne(f => f.Endereco)
+                .WithOne(e => e.Fornecedor);
+
+            //1:N => Fornecedor : Produtos
+            builder.HasMany(f => f.Produtos)
+                .WithOne(p => p.Fornecedor)
+                .HasForeignKey(p => p.FornecedorId);
+___
+
+Agora vamos aplicar esse mapeamento para funcionar no nosso Contexto:
+
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.ApplyConfigurationFromAssembly(typeof(MeuDbContext).Assembly);
+      //Com isso ele vai pegar o Contexto, vai buscar todas as entidades que estão mapeadas nesse Contexto,
+      // e buscar arquivos(classes) que herdam de IEntityTypeConfiguration para aquelas Entidades que estão relacionadas no Contexto.
+
+    //Eliminando o DeleteCascade
+    foreach (var relacao in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys())) relacao.DeleteBehavior = DeleteBehavior.ClientSetNull;
+}
+___
+
+Agora nós vamos configurar o Contexto na Aplicação => mais precisamente no Startup.cs primeiramente configurando a dependência com o Data
+Adicionamos mais uma configuração de contexto, pois uma é pro contexto do Identity e a que vamos adicionar é pra o nosso contexto:
+
+services.AddDbContext<MeuDbContext>(options =>
+                options.UseSqlServer(
+                    Configuration.GetConnectionString("DefaultConnection")));
+
+Configurar a ConnectionString no appSettingsJson antes de mapear no BD (Server=DEV1979\\SQLEXPRESS;Database=MinhaAppMvc;Integrated Security=SSPI)!
+
+E agora fazemos o básico que é criar uma Migration e depois o Database-Update: 
+Como temos 2 contextos devemos aplicar uma migration pra cada e no update também fazer um pra cada!
+
+in Data:
+add-migration "nomeMigration" -verbose -context MeuDbContext
+in App:
+add-migration "nomeMigration" -verbose -context ApplicationDbContext
+
+Update-Database -context MeuDbContext
+Update-Database -context ApplicationDbContext
+
+
