@@ -1,0 +1,57 @@
+Vamos criar uma interface padrão que é o nosso IRepository. Aqui teremos as ações padrão(Repositorório Genérico) para todas as entidades,
+como Adicionar, Alterar, Apagar e Ler.
+
+
+public interface IRepository<TEntity> : IDisposable where TEntity : Entity
+
+TEntity => posso receber qualquer Entidade para efetuar as chamadas dos métodos desse Repositório.
+
+IDisposable => Que é para obrigar que esse repositório faça o dispose pra liberar memória.
+
+Where => onde
+
+TEntity : Entity => Toda e qualquerentidade que vou padronizar no  repositório deve por obrigatoriedade herdade de Entity,
+que é a classe que gera a criação e controle de Id's.
+__________________________________________________________________________________________________________________________
+
+Criando os métodos:
+
+Como trabalharemos de forma Asyncrona,  todosm os métodos serão uma Task:
+
+Task Adicionar(TEntity entity);
+Task<TEntity> ObterPorId(Guid id);
+Task<List<TEntity>> ObterTodos();
+Task Atualizar(TEntity entity);
+Task Remover(Guid id);
+
+Task<IEnumerable<TEntity>> Buscar(Expression<Func<TEntity, bool>> predicate);
+Buscar => Temos um método Buscar onde vamos passar uma expressão que vai trabalhar com uma Function,
+comparando ela com um bool, e vamos chamá-la de predicate!
+
+Task<int> SaveChanges(); => retorna int que é o n° de linhas afetadas!
+_____________________________________________________________________________________________________________________________
+Agora vamos criar a Interface responsável por cada classe específica com seus prórios métodos, 
+e também implementando o repositório padrão com os seus métodos do CRUD:
+
+public interface IFornecedorRepository : IRepository<Fornecedor>
+{
+	Task<Fornecedor> ObterFornecedorEndereco(Guid id);
+	Task<Fornecedor> ObterFornecedorProdutosEndereco(Guid id);
+
+//Temos os métodos específicos para Fornecedor onde ele obtém os dados dos nomes dos métodos acima,
+//isso facilita quando precisamos de dados compostos de uma entidade e suas relações!
+}
+
+
+public interface IProdutoRepository : IRepository<Produto>
+{
+	Task<IEnumerable<Produto>> ObterProdutosPorFornecedor(Guid fornecedorId); => retorno uma lista de produtos POR fornecedor
+	Task<IEnumerable<Produto>> ObterProdutosFornecedores(); => vou ter uma lista de produtos com as infos do Fornecedor
+	Task<Produto> ObterProdutoFornecedor(Guid id); => aqui retornamos o produto e o fornecedor dele
+}
+
+
+public interface IEnderecoRepository : IRepository<Endereco>
+{
+	Task<Endereco> ObterEnderecoPorFornecedor(Guid fornecedorId)
+}

@@ -1,0 +1,129 @@
+Tendo as interfaces prontas agora vamos implementá-las como classes concretas que vão interagir com o BD e seus métodos!
+Fazemos isso na camada de Dados da aplicação.
+
+>Repository(Folder)
+  >Repository.cs
+
+public class Repository<TEntity> : IRepository<TEntity> where TEntity : Entity, new() => mesma questão de herança da classe entity que gera os Ids
+{
+OBS: para termos acesso ao nosso contexto vamos implementar a passagem no construtor da classe e passar pra variável protegida:
+
+protected readonly MeuDbContext Db;
+protected readonly DbSet<TEntity> DbSet;
+
+DbSet => isso é para criar um atalho do DbSet<TEntity> pra não ficar escrevendo em todos os métodos e o código ficar mais limpo!
+como ficaria => Db.Set<TEntity>().Add(entity);
+como fica com o atalho do DbSet => DbSet.Add(Entity);
+
+	public Repository(MeuDbContext db) => Ctor
+        {
+            Db = db;
+            DbSet = db.Set<TEntity>();
+        }
+
+	public async Task<IEnumerable<TEntity>> Buscar(Expression<Func<TEntity, bool>> predicate)
+        {
+            return await DbSet.AsNoTracking().Where(predicate).ToListAsync();
+	    => AsNoTracking = Inibir que o objeto fique sendo rastreado na memória e melhora a performace da App;	
+        }
+
+        public virtual async Task<TEntity> ObterPorId(Guid id)
+        {
+            return await DbSet.FindAsync(id);
+        }
+
+        public virtual async Task<List<TEntity>> ObterTodos()
+        {
+            return await DbSet.ToListAsync();
+        }
+
+        public virtual async Task Adicionar(TEntity entity)
+        {
+            DbSet.Add(entity);
+            await SaveChanges();
+        }
+
+        public virtual async Task Atualizar(TEntity entity)
+        {
+            DbSet.Update(entity);
+            await SaveChanges();
+        }
+
+        public virtual async Task Remover(Guid id)
+        {
+            DbSet.Remove(new TEntity { Id = id});
+            await SaveChanges();
+        }
+
+        public async Task<int> SaveChanges()
+        {
+            return await Db.SaveChangesAsync();
+        }
+        public void Dispose()
+        {
+            Db?.Dispose();
+        }
+
+=> métodos virtual nos permite dar um override(sobrescrever) quando houver necessidade!
+}
+
+
+
+public class ProdutoRepository : Repository<Produto>, IProdutoRepository
+{
+        public ProdutoRepository(MeuDbContext context) : base(context){ } => Ctor
+
+        public async Task<Produto> ObterProdutoFornecedor(Guid id)
+        {
+            return await Db.Produtos.AsNoTracking().Include(f => f.Fornecedor) /*=> InnerJoin com Fornecedor*/
+                .FirstOrDefaultAsync(p => p.Id == id);
+        }
+
+        public async Task<IEnumerable<Produto>> ObterProdutosFornecedores()
+        {
+            return await Db.Produtos.AsNoTracking().Include(f => f.Fornecedor) /*=> InnerJoin com Fornecedor*/
+                .OrderBy(p => p.Nome).ToListAsync();
+        }
+
+        public async Task<IEnumerable<Produto>> ObterProdutosPorFornecedor(Guid fornecedorId)
+        {
+            return await Buscar(p => p.FornecedorId == fornecedorId);
+        }
+}
+
+public class FornecedorRepository : Repository<Fornecedor>, IFornecedorRepository
+{
+     public FornecedorRepository(MeuDbContext context) : base(context) { } => Ctor
+
+     public async Task<Fornecedor> ObterFornecedorEndereco(Guid id)
+     {
+         return await Db.Fornecedores.AsNoTracking().Include(c => c.Endereco) /* -> InnerJoin Endereco */
+             .FirstOrDefaultAsync(c => c.Id == id);
+     }
+
+     public async Task<Fornecedor> ObterFornecedorProdutosEndereco(Guid id)
+     {
+         return await Db.Fornecedores.AsNoTracking().Include(c => c.Endereco) /* => Aqui temos dois Include pra fazer o InnerJoin de duas tabelas */
+             .Include(c => c.Produtos).FirstOrDefaultAsync(c => c.Id == id);
+     }
+}
+
+public class EnderecoRepository : Repository<Endereco>, IEnderecoRepository
+ {
+     public EnderecoRepository(MeuDbContext context) : base(context) { }
+
+     public async Task<Endereco> ObterEnderecoPorFornecedor(Guid fornecedorId)
+     {
+         return await Db.Enderecos.AsNoTracking().FirstOrDefaultAsync(f => f.FornecedorId == fornecedorId);
+     }
+}
+
+Agora pra que tudo isso funcione em qualquer lugar, vamos na classe Startup.cs, dentro do configureServices faremos
+a resolução da injeção de dependências: 
+
+services.AddScoped<MeuDbContext>();
+services.AddScoped<IProdutoRepository, ProdutoRepository>();
+services.AddScoped<IFornecedorRepository, FornecedorRepository>();
+services.AddScoped<IEnderecoRepository, EnderecoRepository>();
+
+FEITO ISSO ESTA OK O MEIO DE ACESSO AO BD e Repositório!
