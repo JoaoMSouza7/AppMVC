@@ -56,8 +56,6 @@ C:\Users\joao.souza\src\AppMVC\src\DevIO.App\bin\Debug\netcoreapp3.1\runtimes\wi
 C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\DevIO.App.csprojAssemblyReference.cache
 C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\staticwebassets\DevIO.App.StaticWebAssets.Manifest.cache
 C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\staticwebassets\DevIO.App.StaticWebAssets.xml
-C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\DevIO.App.MvcApplicationPartsAssemblyInfo.cs
-C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\DevIO.App.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\DevIO.App.RazorAssemblyInfo.cache
 C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\DevIO.App.RazorAssemblyInfo.cs
 C:\Users\joao.souza\src\AppMVC\src\DevIO.App\obj\Debug\netcoreapp3.1\DevIO.App.AssemblyInfoInputs.cache

@@ -1,0 +1,142 @@
+Adicionamos nossas ViewModels para usarmos na apresentação da App.
+ProdutoViewModel
+FornecedorViewModel
+EnderecoViewModel
+
+Para mapearmos a entidade para a ViewModel vamos usara basicamente as mesmas informações da entidade,
+porém nas propriedades do tipo entidade trocamos para ViewModel: 
+
+public Fornecedor Fornecedor {get; set;}
+fica
+public FornecedorViewModel Fornecedor {get; set}
+
+Precisamos também decorá-las:
+em ProdutoViewModel adicionamos o public Guid Id {get; set;} porque ele estava sendo herdado de entity e 
+aqui na VM não existe essa herança!
+
+Decorando as propriedades: (DEC)
+
+public class ProdutoViewModel
+{
+    [Key] //(DEC)
+    public Guid Id { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")] //(DEC)
+    [DisplayName("Fornecedor")] //(DEC)
+    public Guid FornecedorId { get; set; }
+
+    [Required(ErrorMessage ="O campo {0} é obrigatório")] //(DEC)
+    [StringLength(200, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)] //(DEC)
+    public string Nome { get; set; }
+
+    [DisplayName("Descrição")] //(DEC)
+    [Required(ErrorMessage = "O campo {0} é obrigatório")] //(DEC)
+    [StringLength(1000, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)] //(DEC)
+    public string Descricao { get; set; }
+
+    //public IFormFile Imagem { get; set; } //=> esse é para Upload de Arquivo
+
+    public string Imagem { get; set; } //=> esse é armazenamento do nome da Imagem
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")] //(DEC)
+    public decimal Valor { get; set; }
+
+    [ScaffoldColumn(false)] //(DEC)
+    public DateTime DataCadastro { get; set; }
+
+    [DisplayName("Ativo?")] //(DEC)
+    public bool Ativo { get; set; }
+
+    /*EF Relations*/
+    public FornecedorViewModel Fornecedor { get; set; }
+}
+
+Criando e decorando as demais ViewModels:
+
+public class FornecedorViewModel
+{
+    [Key]
+    public Guid Id { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(100, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
+    public string Nome { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(14, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 11)]
+    public string Documento { get; set; }
+
+    [DisplayName("Tipo")]
+    public int TipoFornecedor { get; set; } //=> int pq aqui nao usamos Enum, só usamos o valor para definir a propriedade no campo de entidade
+
+
+    public EnderecoViewModel Endereco { get; set; }
+
+    [DisplayName("Ativo?")]
+    public bool Ativo { get; set; }
+
+    public IEnumerable<ProdutoViewModel> Produtos { get; set; } //=> lista para receber todos os produtos desse fornecedor!
+}
+
+
+public class EnderecoViewModel
+{
+    [Key]
+    public Guid Id { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(200, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
+    public string Logradouro { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(50, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
+    public string Numero { get; set; }
+
+    public string Complemento { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(8, ErrorMessage = "O campo {0} precisa ter {1} caracteres")]
+    public string Cep { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(100, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
+    public string Bairro { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(100, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
+    public string Cidade { get; set; }
+
+    [Required(ErrorMessage = "O campo {0} é obrigatório")]
+    [StringLength(50, ErrorMessage = "O campo {0} precisa ter entre {2} e {1} caracteres", MinimumLength = 2)]
+    public string Estado { get; set; }
+
+    [HiddenInput] //=> campo será sempre tratado com hidden (oculto)
+    public Guid FornecedorId { get; set; } //=> pra eu saber a quem pertence esse Endereço
+}
+
+
+Como fazer a transformação de Entidade para ViewModel e ViceVersa:
+
+NO PROJETO APP => Install-Package automapper.extensions.microsoft.dependencyInjection
+com isso instalamos o pacote do AutoMapper!
+
+Agora configuramos o AutoMapper no Startup:
+services.AddAutoMapper(typeof(Startup)); //=> então ele trabalha com o proprio Startup, o que temos configurado aqui ele vai usar.
+OBS: O AutoMapper vai tirar a resolução do quequeremos através do arquivo que vamos criar a seguir:
+
+In App Add Folder > AutoMapper
+add > AutoMapperConfig
+
+public class AutoMapperConfig : Profile //=> EsseProfile pertence ao AutoMapper, precisamos aaté usar a biblioteca do AutoMapper
+{
+    public AutoMapperConfig
+    {
+        CreateMap<Fornecedor, FornecedorViewModel>().ReverseMap();
+        CreateMap<Produto, ProdutoViewModel>().ReverseMap();
+        CreateMap<Endereco, EnderecoViewModel>().ReverseMap();
+    }
+}
+
+Como vai funcionar pro AutoMapper usar essa classe no Startup?
+quando passamos o Startup em services.AddAutoMapper(typeof(Startup)), dentro do Assembly DevIo.App procure
+qualquer classe que possua o Profile como herança, pois o Profile é uma classe de configuração de mapeamento do AutoMapper!
