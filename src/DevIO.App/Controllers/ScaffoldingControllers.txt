@@ -1,0 +1,284 @@
+Vamos criar as Views através do processo de Scaffolding.
+
+Controllers > add MVC-Controller > seleciona a entidade ViewModel, escolhe qualquer Context e gera!
+
+OBS: Ao gerar usando o MeuDbContext, por ele estar em outra camada, não existe o DbSet da ViewModel,
+então eu criei usando o ApplicationDbContext e removi o DbSet do mesmo.
+
+Nomes: FornecedoresCotroller, ProdutosController.
+
+Substituir contexto gerado na Scaffoldig pelo Repositório
+Agora como o Scaffolding gera a controller usanado o ApplicationDbContext como acesso ao banco, vamos mudar isso e utilizaremos a Interface,
+respectiva da entidade a qual pertence acontroller:
+
+private readonly IFornecedorRepository _fornecedorRepository;
+private readonly IMapper _mapper;
+
+
+public FornecedoresController(IFornecedorRepository fornecedorRepository, IMapper mapper)
+{
+   _fornecedorRepository = fornecedorRepository;
+   _mapper = mapper;
+}
+
+Como a nossa View utiliza um FornecedorVIEWMODEL, e o retorno do banco nos traz uma lista de Fornecedor.
+precisamos usar o AutoMapper:
+
+Ficará assim: 
+        public async Task<IActionResult> Index()
+        {
+            return View(_mapper.Map<IEnumerable<FornecedorViewModel>>(await _fornecedorRepository.ObterTodos()));
+        }
+
+Como vamos ter esse processo de obterTodos em vários métodos da Controller, vamos criar um método já com essa converção,
+usaremos um método privado dentro da própria Controller para fazera chamada nos métodos!
+
+private async Task<FornecedorViewModel> ObterFornecedorEndereco(Guid id)
+{
+   return _mapper.Map<FornecedorViewModel>(await _fornecedorRepository.ObterFornecedorEndereco(id))
+}
+O método ObterFornecedorEndereco já existe criado no repositório e faz a busca no banco!
+
+Método Detalhes: Chamamos o método acima
+
+public async Task<IActionResult> Details(Guid id)
+{
+   var fornecedorViewModel = await ObterFornecedorEndereco(id);
+   if(fornecedorViewModel == null)
+   {
+	return NotFound();
+   }
+
+   return View(fornecedorViewModel);
+}
+
+____________
+método Create:
+
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Create(FornecedorViewModel fornecedorViewModel)
+{
+   if(!ModelState.IsValid) return NotFound();
+
+   var fornecedor = _mapper.Map<Fornecedor>(fornecedorViewModel);
+   await _fornecedorRepository.Adicionar(fornecedor);
+
+   return RedirectToAction("Index");
+}
+
+____________
+Método Edit: Quando formos editar esse fornecedor queremos tambémo Endereço e a lista de produtos desse Fornecedor,
+então pra isso acontecer vamos criar um novo método privado para utilizarmos quando precisarmos do Fornecedor, seu endereço e seus produtos.
+
+private async Task<FornecedorViewModel> ObterFornecedorProdutosEndereco(Guid id)
+{
+   return _mapper.Map<FornecedorViewModel>(await _fornecedorRepository.ObterFornecedorProdutosEndereco(id));
+}
+
+public async Task<IActionResult> Edit(Guid id)
+{
+   var fornecedorViewModel = await ObterFornecedorProdutosEndereco(id);
+
+   if(fornecedorViewModel == null) return NotFound();
+
+   return View(fornecedorViewModel);
+}
+
+
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Edit(Guid id, FornecedorViewModel fornecedorViewModel)
+{
+   if(id != fornecedorViewModel.Id) return NotFound();
+  
+   if(!ModelState.IsValid) return View(FornecedorViewModel);
+
+   var fornecedor = _mapper.Map<Fornecedor>(fornecedorViewModel);
+   await _fornecedorRepository.Atualizar(fornecedor);
+
+   return RedirectToAction("Index");
+
+}
+_______________
+
+Método Delete:
+
+public async Task<IActionResult> Delete(Guid id)
+{
+   var fornecedorViewModel = await ObterFornecedorEndereco(id);
+
+   if(fornecedorViewModel == null) return NotFound();
+
+   return View(fornecedorViewModel);
+}
+
+[HttpPost, ActionName("Delete")]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> DeleteConfirmed(Guid id)
+{
+   var fornecedorViewModel = await ObterFornecedorEndereco(id); //=> indo no banco validar se existe um fornecedor com o id informado
+
+   if(fornecedorViewModel == null) return NotFound();
+
+   await _fornecedorRepository.Remover(id);
+
+   return RedirectToAction("Index");
+}
+
+CONTROLLER DE FORNECEDOR OK, POR ENQUANTO, POIS HAVERÁ MELHORIAS!! MAS ESTÁ FUNCIONANDO!!
+Criamosmuma nova Controller =>BaseController : Controller e todas as controllers herdam dela,
+pois o que fizermos de validações na BaseController valerá pra todas as outras!!
+
+-------------------------------------------------------------------------------------------------------------------
+
+GERANDO AS OUTRAS CONTROLLERS:
+Usamos primeiro o Scaffolding
+
+Usamos a Interface da entidade e o IMapper, injetamos no Ctor!
+
+        private readonly IProdutoRepository _produtoRepository;
+        private readonly IFornecedorRepository _fornecedorRepository; //Para popularmos a lista de fornecedores, e apresentar no DropDown
+        private readonly IMapper _mapper;
+
+        public ProdutosController(IProdutoRepository produtoRepository, IFornecedorRepository fornecedorRepository, IMapper mapper)
+        {
+            _produtoRepository = produtoRepository;
+	    _fornecedorRepository = fornecedorRepository
+            _mapper = mapper;
+        }
+
+
+Aqui em Produtos, quando formos mostrar o produto no index fazemos o include com o fornecedor, e para obter a lista de produtos com fornecedors,
+não só o fornecedor daquele produto, mas também uma lista com todos os fornecedors caso eu venha a editar o produto e popular o dropdown list,
+vamos ter que fazer um processo: 
+
+Então na ProdutoViewModel além do Fornecedor que eu já tenho lá, vou criar uma Lista de Fornecedores pra carregar aquela lista e popular o DropDown.
+Add => public IEnumerable<FornecedorViewModel> Fornecedores {get; set;}
+
+Então agora vamos pra controller, primeiro adicionamos os métodos privados específicos do Repositorio de Produtos:
+
+private async Task<ProdutoViewModel> ObterProduto(Guid id)
+{
+   //obs: vamos popular a lista através de uma consulta no repositório.
+   var produto = _mapper.Map<ProdutoViewModel>(await _produtoRepository.ObterProdutoFornecedor(id)); //Nesse método eu já vou ter o produto e o fornecedor DELE!
+ 
+   //Agora vamos popular a lista de Fornecedores que criamos no ProdutoViewModel
+   produto.Fornecedores = _mapper.Map<IEnumerable<FornecedorViewModel>>(await _fornecedorRepository.ObterTodos());
+
+   return produto;
+   //Com isto já retornamos o Produto com seu Fornecedor e a lista de fornecedores já preenchida.
+}
+
+
+Método Index:
+public async Task<IActionResult> Index()
+{
+   return View(_mapper.Map<IEnumerable<ProdutoViewModel>>(await _produtoRepository.ObterProdutosFornecedores()));
+}
+
+
+Método Details:
+public async Task<IActionResult> Details(Guid id)
+{
+   var produtoViewModel = await ObterProduto(id);
+
+   if(produtoViewModel == null) return NotFound();
+
+   return View(produtoViewModel);
+}
+
+Método Create: aqui populamos os fornecedores para escolher o fornecedor para o produto
+public async Task<IActionResult> Create()
+{
+   //Quando vamos criar o produto, temos uma model vazia, então não podemos usar o método ObterProduto pois ele foi obtido através do Id,
+   //e nesse caso não temos o id porque vamos CRIAR o PRODUTO, sendoassim criamos outro método privado para fazer esse trabalho.
+   
+   var produtoViewModel = await PopularFornecedores(new ProdutoViewModel());
+   return View(produtoViewModel);
+}
+__________
+MÉTODO PRIVADO = usamos acima(Create) e outros lugares
+private async Task<ProdutoViewModel> PopularFornecedores(ProdutoViewModel produtoViewModel)
+{
+   produtoViewModel.Fornecedores = _mapper.Map<IEnumerable<FornecedorViewModel>>(await _fornecedorRepository.ObterTodos());
+   return produtoViewModel;
+   //Apartir de qualquer ViewModel que eu passe ele popula os fornecedores daquela ViewModel!
+}
+
+
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Create(ProdutoViewModel produtoViewModel)
+{
+   //Primeiro vamos validar a ViewModel, pois se houver algum erro, precisamos devolver ela já com os fornecedores populados para que o usuário possa recriar.
+
+   produtoViewModel = await PopularFornecedores(produtoViewModel);
+
+   if(!ModelState.IsValid) return View(produtoViewModel);
+
+   await _produtoRepository.Adicionar(_mapper.Map<Produto>(produtoViewModel));
+
+   return View(produtoViewModel);
+//Este é provisório, ou seja, ta certo só que vamos  melhorar mais a frente, implementar upload de imagem etc..
+}
+
+
+
+MÉTODO EDIT:
+public async Task<IActionResult> Edit(Guid id)
+{
+   var produtoViewModel = await ObterProduto(id);
+
+   if(produtoViewModel == null) return NotFound();
+
+   return View(produtoViewModel);
+}
+
+
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Edit(Guid id, ProdutoViewModel produtoViewModel)
+{
+   if(id != produtoViewModel.Id) return NotFound();
+
+   if(!ModelState.IsValid) return View(produtoViewModel);
+
+   await _produtoRepository.Atualizar(_mapper.Map<Produto>(produtoViewModel));
+
+   return RedirectToAction("Index");
+}
+
+
+MÉTODO DELETE:
+public async Task<IActionResult> Delete(Guid id)
+{
+   var produto = await ObterProduto(id);
+
+   if(produto == null) return NotFound();
+
+   return View(produto);
+}
+
+[HttpPost, ActionName("Delete")]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> DeleteConfirmed(Guid id)
+{
+   var produto = await ObterProduto(id); //=> indo no banco validar se existe um produto com o id informado
+
+   if(produto == null) return NotFound();
+
+   await _produtoRepository.Remover(id);
+
+   return RedirectToAction("Index");
+}
+
+FEITO ISSO A CONTROLLER DE PRODUTO ESTÁ OK, FUNCIONANDO PORÉM HAVERÁ MELHORIAS!!!
+
+
+
+
+
+
+
+

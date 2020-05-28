@@ -41,5 +41,7 @@ namespace DevIo.App.ViewModels
 
         /*EF Relations*/
         public FornecedorViewModel Fornecedor { get; set; }
+
+        public IEnumerable<FornecedorViewModel> Fornecedores { get; set; }
     }
 }
