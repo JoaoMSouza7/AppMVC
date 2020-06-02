@@ -1,0 +1,187 @@
+CUSTOMIZANDO VIEW FORNECEDORES
+
+DevIO.App > Views > Fornecedores adicionamos uma PartialView _Endereco com template de Create,
+ModelClass > EnderecoViewModel e Adicionamos!
+
+Só usaremos as divs de Formulário, a @model trocamos para FornecedorViewModel e nos campos usamos Fornecedor.Logradouro e ETC.
+
+Ficará assim a Partial View _Endereco: 
+
+@model DevIo.App.ViewModels.FornecedorViewModel
+
+<div class="form-group">
+    <label asp-for="Endereco.Cep" class="control-label"></label>
+    <input asp-for="Endereco.Cep" class="form-control" />
+    <span asp-validation-for="Endereco.Cep" class="text-danger"></span>
+</div>
+<div class="form-group">
+    <label asp-for="Endereco.Logradouro" class="control-label"></label>
+    <input asp-for="Endereco.Logradouro" class="form-control" />
+    <span asp-validation-for="Endereco.Logradouro" class="text-danger"></span>
+</div>
+<div class="form-group">
+    <label asp-for="Endereco.Numero" class="control-label"></label>
+    <input asp-for="Endereco.Numero" class="form-control" />
+    <span asp-validation-for="Endereco.Numero" class="text-danger"></span>
+</div>
+<div class="form-group">
+    <label asp-for="Endereco.Complemento" class="control-label"></label>
+    <input asp-for="Endereco.Complemento" class="form-control" />
+    <span asp-validation-for="Endereco.Complemento" class="text-danger"></span>
+</div>
+<div class="form-group">
+    <label asp-for="Endereco.Bairro" class="control-label"></label>
+    <input asp-for="Endereco.Bairro" class="form-control" />
+    <span asp-validation-for="Endereco.Bairro" class="text-danger"></span>
+</div>
+<div class="form-group">
+    <label asp-for="Endereco.Cidade" class="control-label"></label>
+    <input asp-for="Endereco.Cidade" class="form-control" />
+    <span asp-validation-for="Endereco.Cidade" class="text-danger"></span>
+</div>
+<div class="form-group">
+    <label asp-for="Endereco.Estado" class="control-label"></label>
+    <input asp-for="Endereco.Estado" class="form-control" />
+    <span asp-validation-for="Endereco.Estado" class="text-danger"></span>
+</div>
+<div class="form-group">
+    <input type="submit" value="Create" class="btn btn-primary" />
+</div>
+
+Subimos o CEP pro primeiro campo pois futuramente usaremos o CEP para buscar o endereço já preenchido.
+
+
+Vamos adicionar a PartialView no Create de Fornecedores, para ao criar o Fornecedor ja informar seu Endereco!
+
+<h4>Endereço</h4>
+<hr /> // => Linha horizontal
+<partial name="_Endereco"/>
+
+customizamos o ["Title"] para Novo Fornecedor
+
+Tira o botão de link e usamos assim:
+
+<div class="form-group">
+    <input type="submit" value="Cadastrar" class="btn btn-primary"/>
+    <a class="btn btn-info" asp-action="Index"> Voltar </a>
+</div>
+
+também mudamos o TIPOFORNECEDOR :
+
+            <div class="form-group">
+                <label asp-for="TipoFornecedor" class="control-label"></label>
+                <input type="radio" value="1" asp-for="TipoFornecedor" checked /> Pessoa Física<br />
+                <input type="radio" value="2" asp-for="TipoFornecedor" /> Pessoa Jurídica
+            </div>
+
+No INDEX agora vamos fazer melhorias de exibição
+
+Traduzimos a View, usamos o class="btn btn-info" na action de adicionar um Fornecedor,
+removemos o TIPOFornecedor da exibição pois pelo documento já sabemos se é CPF ou CNPJ.
+
+Melhoramos a exibição da tabela com o codigo:
+<table class="table table-hover">
+    <thead class="thead-dark"> <!--Pinta de preto o cabeçalho da tabela-->
+
+___
+Nos botões Editar,Detalhes e Excluir fazemos:
+
+Alinhamento adireita, substituiçãodos textos por icones:
+
+primeiro => DevIo.App > wwroot> > lib > Add > ClientSide.Library > no campo Library add > font-awesome:
+selecionamos EscolhaArquivos Especificos > all.min.css, e no WebFonts escolhemos as fontes e Install!!
+
+no _Layout adicionams o arquivo all.min.css que instalamos pra rodarem todas as páginas:
+vai no lib > arrasta o arquvio pro _Layout
+
+Implementando os icones ficará assim:
+
+<a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id"><span class="fa fa-search"></span></a> // No lugar do texto Detalhes usamos o icone Search ou lupa
+<a class="btn btn-warning" asp-action="Edit" asp-route-id="@item.Id"><span class="fa fa-pencil-alt"></span></a>
+<a class="btn btn-info" asp-action="Details" asp-route-id="@item.Id"><span class="fa fa-search"></span></a>
+<a class="btn btn-danger" asp-action="Delete" asp-route-id="@item.Id"><span class="fa fa-trash"></span></a>
+___
+
+
+VIEW PRODUTOS: 
+Na View de Produts ao criar precisamos escolher o Fornecedor do Prodto, na Controller já temos o método de popular Fornecedores fazendo isso,
+para exibirmos essa lista fazemos:
+
+Produtos> Create:
+            <div class="form-group">
+                <label asp-for="FornecedorId" class="control-label"></label>
+                <select asp-for="FornecedorId" class ="form-control" asp-items="@(new SelectList(Model.Fornecedores, "Id", "Nome"))">
+		    <option></option> // Exige a Seleção e deixa em branco o primeiro
+		</select>
+
+		<span asp-vallidation-for="FornecedorId" class="text-danger"></span>
+            </div>
+Agora a lista que populamos na Controller está sendo exibida na criação de Produto!
+____
+
+CAMPO IMAGEM:
+            <div class="form-group">
+                <label asp-for="ImagemUpload" class="control-label"></label>
+               
+                <div class="custom-file">
+                    <input type="file" class="custom-file-input" id="ImagemUpload" asp-for="ImagemUpload">
+                    <label data-browse="Procurar" style="width: 400px" class="custom-file-label" for="ImagemUpload"></label>
+                    <label style="display: none" id="img_nome"></label>
+                </div>
+
+                <span asp-validation-for="ImagemUpload" class="text-danger"></span>
+            </div>
+
+Explicação = div Custom-File que é uma classe css do Bootstrap pra quando vamos fazer upload de imagem.
+input type="file" => quer dizer, ele já sabe que é pra fazer upload de um arquivo.
+class="custom-file-input" => também é do Bootstrap
+id="ImagemUpload" => o Id dele aponta por ImagemUpload, colocado a mão para forçar que o upload seja feito neste campo
+
+Forçar porque? pq o label abaixo de <label data-browse="Procurar" que é o botão de Procurar, tem que apontar pra ImagemUpload,
+só que esse Id que colocamos a mão ele seria gerado automaticamente, então criamos ele para controlar a relação ID e Nome do arquivo.
+
+<label style="display: none" id="img_nome"></label> => Mostrar o nome da imagem em baixo assim que selecioná-la
+
+para esse mostrar nome de imagem adicionamos o seguinte script na seção de scripts:
+
+<script>
+    $("#ImagemUpload").change(function(){
+        $("#img_nome").text(this.files[0].name);
+	$("#img_nome")[0].style.display = 'block';
+    });
+
+    $("ImagemUpload").attr("data-val", "true");
+    $("ImagemUpload").attr("data-val-required", "Preencha o campo Imagem");
+</script>
+
+Explicação = Eu tenho o campo ImagemUpload, apartir do momento que ele mudou (change) ele vai pegar do campo Imagem(img_nome),
+o texto na posição 0 e pegar o Nome([0].name), ou seja, ele vai tirar o nome do arquivo e atribuir ao span img_nome.text,
+$("#img_nome")[0].style.display = 'block'; e setar a visibilidade dele para block, 
+
+e além de tudo ele vai exigit que o campo seja preenchido com o 
+    $("ImagemUpload").attr("data-val", "true");
+    $("ImagemUpload").attr("data-val-required", "Preencha o campo Imagem");
+
+
+No ProdutoViewModel o Imagem Upload não é requerido pois se na hora de editar não quisermos alterar a imagem,
+o [Required] nos impediria de editar, por isso então temos a validação acima por Script apenas na tela de criação!
+
+Campo ImagemUpload resolvido, agora precisamos resolver o campo IMAGEM! isso fremos na Controller!!
+
+antes, alguns ajustes:
+adicionamos o enctype="multipart/form-data" no <form 
+=> usamos isso para upload de arquivos binários, ou sej, não esta subindo apenas texto, 
+estamos fazendo o parse desse objeto pra um formato que ele vai entender como um array de bytes!
+
+Corrigimos os botões de Cadastrar com foi feito anteriormente em Fornecedor, ajusta o Título =>
+<h3 style="padding-top: 50px">@ViewData["Title"]</h3> padding-top para abaixar um pouco o título e nao ficar colado em cima!
+
+No ProdutoViewModel usamos um displayname para ImagemUpload
+[DisplayName("Imagem do Produto")]
+
+Corrigindo a Index de Produto: Com a mesma base feita na de Fornecedores, traduzindo, arrumando os campos que serão exibidos, corrigindo os botões e o cabeçalho da tabela!
+
+Feito isso praticamente pronto, porém agora vamos trabalhar a kexibição e armazenamento de upload da imagem do Produto!!
+
+
+
