@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Folder Include="AutoMapper\" />
+    <Folder Include="wwwroot\imagens\" />
   </ItemGroup>
 
 </Project>

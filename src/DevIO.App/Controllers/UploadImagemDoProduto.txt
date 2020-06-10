@@ -1,0 +1,62 @@
+Ajustes de css global para toda aplicação, ajustando tdos os campos do mesmo tamanho!
+
+wwwroot > css > css.min > 
+
+input,
+select,
+file,
+textarea{
+    max-width: 400px;
+}
+
+ou seja, todo input, select, file ou text-area terá 400 px de tamanho!
+No create Produto ajustar a segunda div de col-md-4 para col-md-10 pra dar espaço para o ajuste.
+
+Na Controller de produtos:
+
+Ordem > primeiro subir a imagem e depois add o produto!
+primeira coisa é criar um padrão para essa imagem.
+
+antes da chamada do repository faz:
+
+var imgPrefixo = Guid.NewGuid() + "_";
+
+isso irá gerar um id para cada  imagem e o nome fará parte após a concatenação do _
+
+tentativa do upload:(método a parte retornando um bool)
+
+private async Task<bool> UploadArquivo(IFormFile arquivo, string imgPrefixo)
+{
+    if(arquivo.lenght <= 0) return false; //Se o tamanho do arquivo for menor = a 0 tem coisa errada ai retorna FALSE
+
+    //Cria nova pasta no wwroot chamada imagens.
+    var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/imagens", imgPrefixo + arquivo.FileName);
+    //Explicação: Criando um Path fazendo a combinação do meu diretório local + wwroot/imagens que é onde vamos salvar a img, e o arquivo que to querendo subir que seria o prefixo + o fileName!
+
+    //Validação se já existe um arquivo de mesmo nome salvo
+    if(System.IO.File.Exists(path))
+    {
+        ModelState.AddModelError(string.Empty, "Já existe u arquivo com este nome!");
+        return false; 
+    }
+
+    //Usar um FileStream passando o pAth que montamos e o FileMode.Create para criarmos o arquivo.
+    using(var stream = new FileStream(path, FileMode.Create))
+    {
+        await arquivo.CopyToAsync(stream); //Isso pra gravar em disco
+    }
+} 
+Após a construção do método de criação do arquivo no disco, (método acima) voltamos no Create e após o var imgPrefixo = Guid.NewGuid():
+
+if(!await UploadArquivo(produtoViewModel.ImagemUpload, imgPrefixo))
+{
+    return View(produtoViewModel);//Se o UploadArquvio não retornar true, retorna com o erro de adicionar a img pro usuário.
+}
+caso retorne True: o campo imagem do Produto recebe o id gerado + o nome da imagem pra salvar no banco e associar este id ao seu produto!
+
+produtoViewModel.Imagem = imgPrefixo + produtoViewModel.ImagemUpload.FileName;
+
+pra exibir a Imagem no Index:
+Onde está separado um <td> pra imagem fazemos:
+<img src="~/imagens/@item.Imagem" alt="@item.Imagem" style="width 70px; height: 100px"/>
+
