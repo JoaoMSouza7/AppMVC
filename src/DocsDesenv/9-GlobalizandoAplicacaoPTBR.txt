@@ -1,0 +1,161 @@
+Globalização da Aplicação para pt-BR
+____________________________________
+
+Add na View _Layout primeira linha:
+
+ @System.Globalization.CultureInfo.CurrentUICulture,
+
+com isto ao rodar a App, nós conseguiremos enxergar a globalização da App. Por padrao vem en-US, então precisamos colocar pt-BR.
+
+-----
+Primeiro colocamos a globalização(Configuração de cultura) no Startup.cs
+
+var defaultCulture = new CultureInfo("pt-BR"); //Definindo nossa cultura
+var localizationOptions = new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture(defaultCulture),  //Request a cultra DefaultCulture que é pt-BR
+    SupportedCultures = new List<CultureInfo> { defaultCulture }, //CulturasSuportadas somente a default que é pt, poderia passar mais culturas.
+    SupportedUICultures = new List<CultureInfo> { defaultCulture }
+};
+app.UseRequestLocalization(localizationOptions);
+-----
+
+Agora nós temos nossa App em pt-BR, porém as validações JavaScript estão ainda em inglês e não aceitando o valor de moeda pt_BR. Então fazemos:
+
+
+Open _ValidationScriptsPartial in Shared(Folder)
+Adicionamos um código Script para as validações de Range, Number e Date
+
+<script>
+    $.validator.methods.range = function (value, element, param) {
+        var globalizedValue = value.replace(",", ".");
+        return this.optional(element) || (globalizedValue >= param[0] && globalizedValue <= param[1]);
+    };
+
+    $.validator.methods.number = function (value, element) {
+        return this.optional(element) || /-?(?:\d+|\d{1,3}(?:[\s\.,]\d{3})+)(?:[\.,]\d+)?$/.test(value);
+    };
+
+    $.validator.methods.date = function (value, element) {
+        var date = value.split("/");
+        return this.optional(element) || !/Invalid|NaN/.test(new Date(date[2], date[1], date[0]).toString());
+    };
+</script>
+
+Então esse método(Script) acima estão colocando a App para trabalhar aceitando o formato que a gente trabalha,
+em formato moeda, data etc.
+
+Agora ao criar um produto a formatação de moeda(EX: 1.225,00) será aceita, porém na view de apresentação não aparece assim,
+e sim desta forma -> 1225,00 //
+
+
+Agora vamos corrigir a escrita da validação em ingles.
+
+Ex: 
+
+Valor
+a
+The Field Valor must be a number
+
+Vamos corrigir a tradução deste texto acima para Português.
+Como essas mensagens em Inglês são um padrão do MVC precisamos alterá-las no Startup.
+
+No Startup.cs fazemos:
+
+services.AddMvc(o => 
+{
+    o.ModelBindingMessageProvider.SetAttemptedValueIsInvalidAccessor((x, y) => "O valor preenchido é inválido para este campo.");
+    o.ModelBindingMessageProvider.SetMissingBindRequiredValueAccessor(x => "Este campo precisa ser preenchido.");
+    o.ModelBindingMessageProvider.SetMissingKeyOrValueAccessor(() => "Este campo precisa ser preenchido.");
+    o.ModelBindingMessageProvider.SetMissingRequestBodyRequiredValueAccessor(() => "É necessário que o body na requisição não esteja vazio.");
+    o.ModelBindingMessageProvider.SetNonPropertyAttemptedValueIsInvalidAccessor(x => "O valor preenchido é inválido para este campo.");
+    o.ModelBindingMessageProvider.SetNonPropertyUnknownValueIsInvalidAccessor(() => "O valor preenchido é inválido para este campo.");
+    o.ModelBindingMessageProvider.SetNonPropertyValueMustBeANumberAccessor(() => "O campo deve ser numérico");
+    o.ModelBindingMessageProvider.SetUnknownValueIsInvalidAccessor(x => "O valor preenchido é inválido para este campo.");
+    o.ModelBindingMessageProvider.SetValueIsInvalidAccessor(x => "O valor preenchido é inválido para este campo.");
+    o.ModelBindingMessageProvider.SetValueMustBeANumberAccessor(x => "O campo deve ser numérico.");
+    o.ModelBindingMessageProvider.SetValueMustNotBeNullAccessor(x => "Este campo precisa ser preenchido.");
+
+    o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+}).SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+
+
+Após isto a tradução dos textos já estão em PT.
+
+----
+Agora vamos criar uma extensão.
+
+Add in App new folder => Extensions
+Dentro criamos uma classe chamada MoedaAttribute, onde vamos configurar o formato de moeda para valores.
+
+Extensions > MoedaAttribute.cs
+
+    public class MoedaAttribute : ValidationAttribute
+    {
+        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+        {
+            try
+            {
+                var moeda = Convert.ToDecimal(value, new CultureInfo("pt-BR"));
+            }
+            catch (Exception)
+            {
+                return new ValidationResult("Moeda em formato inválido");
+            }
+
+            return ValidationResult.Success;
+        }
+    }
+
+    public class MoedaAttributeAdapter : AttributeAdapterBase<MoedaAttribute>
+    {
+        public MoedaAttributeAdapter(MoedaAttribute attribute, IStringLocalizer stringLocalizer) : base(attribute, stringLocalizer)
+        {
+
+        }
+
+        public override void AddValidation(ClientModelValidationContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            MergeAttribute(context.Attributes, "data-val", "true");
+            MergeAttribute(context.Attributes, "data-val-moeda", GetErrorMessage(context));
+            MergeAttribute(context.Attributes, "data-val-number", GetErrorMessage(context));
+        }
+
+        public override string GetErrorMessage(ModelValidationContextBase validationContext)
+        {
+            return "Moeda em formato inválido";
+        }
+    }
+
+    public class MoedaValidationAttributeAdapterProvider : IValidationAttributeAdapterProvider
+    {
+        private readonly IValidationAttributeAdapterProvider _baseProvider = new ValidationAttributeAdapterProvider();
+
+        public IAttributeAdapter GetAttributeAdapter(ValidationAttribute attribute, IStringLocalizer stringLocalizer)
+        {
+            if (attribute is MoedaAttribute moedaAttribute)
+            {
+                return new MoedaAttributeAdapter(moedaAttribute, stringLocalizer);
+            }
+
+            return _baseProvider.GetAttributeAdapter(attribute, stringLocalizer);
+        }
+    }
+
+
+Agora na ViewModel de Produto, colocamos acima do campo VALOR o atribyuto [Moeda]!
+
+Agora registramos o Adapter via injeção de dependência > Startup.cs > :
+
+Add: services.AddSingleton<IValidationAttributeAdapterProvider, MoedaValidationAttributeAdapterProvider>();
+
+Agora sim já estará funcionando!
+
+
+Para finalizar agora vamos corrigir o Valor, como ele está sendo exibido assim 1255,00 para R$ 1.255,00.
+
+In Views > Produtos > Index
+
+onde nós temos o valor sendo exibido fazemos: @item.valor.ToString("C")

@@ -1,0 +1,127 @@
+Customizando Edição do Produto
+______________________________
+
+Vamos adequar a tela de Edição do produto, para que o dropdown receba a lista de Fornecedores, também queremos que a imagem apareça na tela de edição,
+e seja possível ser trocada, porém, não obrigatoriamente, e também adequar a questão visual da View.
+
+No VS -> View(Produtos/Edit)
+fazemos: 
+
+@model DevIo.App.ViewModels.ProdutoViewModel
+
+@{
+    ViewData["Title"] = "Editar " + Model.Nome;
+}
+
+<h4 style="padding-top: 30px">@ViewData["Title"]</h4>
+<hr />
+
+<div class="row">
+    sac040
+    <div class="col-md-10">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <input type="hidden" asp-for="Id" />
+
+            <div class="form-group">
+                <label asp-for="Nome" class="control-label"></label>
+                <input asp-for="Nome" class="form-control" />
+                <span asp-validation-for="Nome" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <!--TextArea para preenchimento de descrição-->
+                <label asp-for="Descricao" class="control-label"></label>
+                <textarea cols="40" rows="5" asp-for="Descricao" class="form-control"></textarea>
+                <span asp-validation-for="Descricao" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <!--Exibição da Imagem Atual-->
+                <label>Imagem Atual</label><br />
+                <img src="~/imagens/@Model.Imagem" alt="@Model.Imagem" style="width: 70px; height: 100px" />
+            </div>
+
+            <label asp-for="ImagemUpload" class="control-label"></label> <!--Fornecer a possibilidade de fazer um upload da Imagem-->
+            <div class="custom-file">
+                <input type="file" class="custom-file-input" id="ImagemUpload" asp-for="ImagemUpload">
+                <label data-browse="Procurar" style="width: 400px" class="custom-file-label" for="ImagemUpload"></label>
+                <label style="display: none" id="img_nome"></label>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Valor" class="control-label"></label>
+                <input asp-for="Valor" class="form-control" />
+                <span asp-validation-for="Valor" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="Ativo" /> @Html.DisplayNameFor(model => model.Ativo)
+                </label>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Salvar" class="btn btn-primary" />
+                <!--Aqui em baixo existe um botão voltar, porém não vamos fazer a navegação através de um link.
+                    Vamos usar um JavaScript, funcionalidade dele é quando clicar em voltar, ser redirecionado pra página que estava anteriormente -->
+                <a class="btn btn-info" href="javascript:window.history.back();">Voltar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script>
+        $("#ImagemUpload").change(function () {  //(change) Ao mudar o conteúdo da imagemUpload vamos exibir o nome do arquivo.
+            $("#img_nome").text(this.files[0].name);
+            $("#img_nome")[0].style.display = 'block'
+        });
+    </script>
+}
+
+Agora, vamos implementar na controller de Produto a possibilidade de alteração da imagem.
+Controller -> ProdutosController:
+
+Fazemos:
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(Guid id, ProdutoViewModel produtoViewModel)
+        {
+            if (id != produtoViewModel.Id) return NotFound();
+
+            var produtoAtualizacao = await ObterProduto(id); //Obtém o produto que está na Base para preencher a viewModel que retorna pro usuário caso não seja válida.
+            produtoViewModel.Fornecedor = produtoAtualizacao.Fornecedor;
+            produtoViewModel.Imagem = produtoAtualizacao.Imagem; //Passa os valores que são obrigatórios no retorno da ViewModel, Fornecedor e Imagem
+            if (!ModelState.IsValid) return View(produtoViewModel);
+
+            //Agora vamos validar se a imagem foi preenchida.
+            if(produtoViewModel.ImagemUpload != null)
+            {
+                var imgPrefixo = Guid.NewGuid() + "_";
+                if (!await UploadArquivo(produtoViewModel.ImagemUpload, imgPrefixo))
+                {
+                    return View(produtoViewModel);//Se o UploadArquvio não retornar true, retorna com o erro de adicionar a img pro usuário.
+                }
+
+                //Caso der certo, preciso salvar a nova imagem no banco, então eu já passso para o produtoAtualizacao.Imagem o nome da 
+                //nova imagem criada acima.
+                produtoAtualizacao.Imagem = imgPrefixo + produtoViewModel.ImagemUpload.FileName;
+            }
+
+            produtoAtualizacao.Nome = produtoViewModel.Nome;
+            produtoAtualizacao.Descricao = produtoViewModel.Descricao;
+            produtoAtualizacao.Valor = produtoViewModel.Valor;
+            produtoAtualizacao.Ativo = produtoViewModel.Ativo;
+            //Aqui acima estamos passando pro nosso produto que buscamos no banco, os valores que podem ter sido alterados na ViewModel
+
+            await _produtoRepository.Atualizar(_mapper.Map<Produto>(produtoAtualizacao));
+
+            return RedirectToAction("Index");
+        }
+
+	    
+
+	    

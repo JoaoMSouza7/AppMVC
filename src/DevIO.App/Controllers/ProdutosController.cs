@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using DevIO.App.Data;
 using DevIo.App.ViewModels;
 using DevIO.Business.Interfaces;
 using AutoMapper;
@@ -90,7 +86,31 @@ namespace DevIO.App.Controllers
         {
             if (id != produtoViewModel.Id) return NotFound();
 
+            var produtoAtualizacao = await  ObterProduto(id); //Obtém o produto que está na Base para preencher a viewModel que retorna pro usuário caso não seja válida.
+            produtoViewModel.Fornecedor = produtoAtualizacao.Fornecedor;
+            produtoViewModel.Imagem = produtoAtualizacao.Imagem; //Passa os valores que são obrigatórios no retorno da ViewModel, Fornecedor e Imagem
+
             if (!ModelState.IsValid) return View(produtoViewModel);
+
+            //Agora vamos validar se a imagem foi preenchida.
+            if(produtoViewModel.ImagemUpload != null)
+            {
+                var imgPrefixo = Guid.NewGuid() + "_";
+                if (!await UploadArquivo(produtoViewModel.ImagemUpload, imgPrefixo))
+                {
+                    return View(produtoViewModel);//Se o UploadArquvio não retornar true, retorna com o erro de adicionar a img pro usuário.
+                }
+
+                //Caso der certo, preciso salvar a nova imagem no banco, então eu já passso para o produtoAtualizacao.Imagem o nome da 
+                //nova imagem criada acima.
+                produtoAtualizacao.Imagem = imgPrefixo + produtoViewModel.ImagemUpload.FileName;
+            }
+
+            produtoAtualizacao.Nome = produtoViewModel.Nome;
+            produtoAtualizacao.Descricao = produtoViewModel.Descricao;
+            produtoAtualizacao.Valor = produtoViewModel.Valor;
+            produtoAtualizacao.Ativo = produtoViewModel.Ativo;
+            //Aqui acima estamos passando pro nosso produto que buscamos no banco, os valores que podem ter sido alterados na ViewModel
 
             await _produtoRepository.Atualizar(_mapper.Map<Produto>(produtoViewModel));
 
